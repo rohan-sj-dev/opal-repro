@@ -1,0 +1,56 @@
+GenMC v0.19.0 (LLVM 19.1.1)
+Copyright (C) 2024 MPI-SWS. All rights reserved.
+
+*** Compilation complete.
+*** Transformation complete.
+Tip: Estimating state-space size before verification. For better performance, you can use --disable-estimation.
+Tip: Threads 1 and 2 could benefit from symmetry reduction. Consider using __VERIFIER_spawn_symmetric().
+
+Error: Safety violation!
+Event (3, 5) in graph:
+<-1, 0>:
+	(0, 1): THREAD_CREATE [thread 1] pthread.h:146
+	(0, 2): THREAD_CREATE [thread 2] pthread.h:146
+	(0, 3): THREAD_CREATE [thread 3] pthread.h:146
+	(0, 4): THREAD_JOIN [thread 1] pthread.h:163
+	(0, 5): BLOCK[join]
+<0, 1> writer:
+	(1, 1): Wna (g_qnodes[0].fn_ptr, 104298859789224) opal_model.h:238
+	(1, 2): Wna (g_qnodes[0].input_ptr, 1) opal_model.h:239
+	(1, 3): Rrlx (L.sv, 0) [INIT] opal_model.h:87
+	(1, 4): CRacq (L.sv, 0) [INIT] opal_model.h:91
+	(1, 5): CWacq (L.sv, 1) opal_model.h:91
+	(1, 6): Rna (g_qnodes[0].fn_ptr, 104298859789224) [(1, 1)] opal_model.h:228
+	(1, 7): Rna (g_qnodes[0].input_ptr, 1) [(1, 2)] opal_model.h:228
+	(1, 8): Wrlx (x, 1) test_reader.c:25
+	(1, 9): Wrlx (y, 1) test_reader.c:26
+	(1, 10): Wna (g_qnodes[0].tree_result, 1) opal_model.h:229
+	(1, 11): URrel (L.sv, 1) [(1, 5)] opal_model.h:109
+	(1, 12): UWrel (L.sv, 4294967297) opal_model.h:109
+	(1, 13): Rrlx (L.sv, 4294967297) [(1, 12)] opal_model.h:97
+	(1, 14): Wrel (L.sv, 4294967296) opal_model.h:98
+	(1, 15): THREAD_END
+<0, 2> writer:
+	(2, 1): Wna (g_qnodes[1].fn_ptr, 104298859789224) opal_model.h:238
+	(2, 2): Wna (g_qnodes[1].input_ptr, 2) opal_model.h:239
+	(2, 3): Rrlx (L.sv, 1) [(1, 5)] opal_model.h:87
+	(2, 4): Wrlx (g_qnodes[1].wait, 1) opal_model.h:245
+	(2, 5): Wrlx (g_qnodes[1].processed, 0) opal_model.h:246
+	(2, 6): Wrlx (g_qnodes[1].next, 0) opal_model.h:247
+	(2, 7): URar (L.tail, 0) [INIT] opal_model.h:250
+	(2, 8): UWar (L.tail, 2) opal_model.h:250
+	(2, 9): Racq (L.sv, 4294967296) [(1, 14)] opal_model.h:103
+	(2, 10): Rrlx (L.sv, 4294967296) [(1, 14)] opal_model.h:87
+<0, 3> reader:
+	(3, 1): Racq (L.sv, 0) [INIT] opal_model.h:136
+	(3, 2): Rrlx (x, 1) [(1, 8)] test_reader.c:49
+	(3, 3): Rrlx (y, 0) [INIT] test_reader.c:50
+	(3, 4): Racq (L.sv, 0) [INIT] opal_model.h:146
+	(3, 5): ERROR test_reader.c:52
+Coherence:
+L.sv: [ (1, 5): CWacq (G#(0, 216), 1) (1, 12): UWrel (G#(0, 216), 4294967297) (1, 14): Wrel (G#(0, 216), 4294967296) ]
+
+
+*** Estimation unsuccessful.
+Total executions estimate: 149 (+- 99)
+Time to completion estimate: 1.74s

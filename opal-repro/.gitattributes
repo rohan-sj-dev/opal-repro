@@ -1,0 +1,2 @@
+# GenMC logs are reference output (counterexample traces); keep them byte-for-byte.
+*.log -text

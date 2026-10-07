@@ -1,0 +1,15 @@
+GenMC v0.19.0 (LLVM 19.1.1)
+Copyright (C) 2024 MPI-SWS. All rights reserved.
+
+*** Compilation complete.
+*** Transformation complete.
+Tip: Estimating state-space size before verification. For better performance, you can use --disable-estimation.
+Tip: Threads 1 and 2 could benefit from symmetry reduction. Consider using __VERIFIER_spawn_symmetric().
+
+*** Estimation complete.
+Total executions estimate: 147 (+- 124)
+Time to completion estimate: 0.14s
+*** Verification complete.
+No errors were detected.
+Number of complete executions explored: 840
+Total wall-clock time: 0.19s

@@ -1,0 +1,25 @@
+== Safety: mutual exclusion, exactly-once batching, mixed writers (RC11)
+mutex-rc11                                   PASS         1104 execs      1s
+batch-rc11                                   PASS       359928 execs    354s
+batch-nor-rc11                               PASS       359928 execs    248s
+mixed-rc11                                   PASS       344568 execs    158s
+
+== Same, under the IMM hardware model (covers ARM/POWER-style reordering)
+mutex-imm                                    PASS         1104 execs      2s
+batch-imm                                    PASS       359928 execs    975s
+mixed-imm                                    PASS       344568 execs   5876s
+
+== Liveness: can any spinloop wait forever? (RC11)
+mutex-live                                   PASS         1104 execs      0s
+batch-live                                   PASS       359928 execs    223s
+mixed-live                                   PASS       344568 execs    183s
+
+== Optimistic reads: can a reader validate a torn (x != y) snapshot?
+reader-wl-tso                                PASS           16 execs      0s
+reader-wl-rc11                               FAIL            - execs      0s
+    Error: Safety violation!
+reader-wl-rc11-fixed                         PASS           16 execs      0s
+reader-batch-tso                             PASS          840 execs      1s
+reader-batch-rc11                            FAIL            - execs      0s
+    Error: Safety violation!
+reader-batch-rc11-fixed                      PASS          876 execs      0s

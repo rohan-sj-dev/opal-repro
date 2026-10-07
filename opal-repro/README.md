@@ -101,8 +101,17 @@ doubling up on SMT siblings.
 
 ## Results on this machine
 
-Full median-of-3 tables: [results/summary.md](results/summary.md) (regenerate with
-`./run_all.sh && python summarize.py`). Records = 2M, skew 0.1, 2 s per run.
+Full median-of-3 tables: [results/summary.md](results/summary.md). Records = 2M,
+skew 0.1, 2 s per run. To regenerate, append three runs of each configuration to
+the CSVs (start each file with `./bench --header`), then run `python summarize.py`:
+
+- `results/threads.csv`: every lock × the five lookup/update workloads × threads
+  1, 2, 4, 8, 12, 16, e.g.
+  `./bench --lock opal --workload update-only --threads 16 --records 2000000 --secs 2 >> results/threads.csv`
+- `results/oversub.csv`: `mcsrw`, `optiql`, `opal` × `balanced`, `update-heavy` ×
+  threads 16, 32, 48, 64, with `--no-pin`
+- `results/skew.csv`: `mcsrw`, `optiql`, `opal` on `update-only` at 16 threads ×
+  `--skew` 0.05, 0.1, 0.2, 0.3, 0.4, 0.5
 
 | Claim in the paper | Here (16 threads max) | Reproduced? |
 | --- | --- | --- |
@@ -117,3 +126,60 @@ Full median-of-3 tables: [results/summary.md](results/summary.md) (regenerate wi
 
 Caveats: 16 hardware threads on a hybrid P/E-core laptop versus 96 cores in the
 paper; Windows scheduler, not Linux; single socket, so no NUMA results.
+
+## Model checking with GenMC
+
+[genmc/](genmc/) holds a C11 model of `include/opal.h` (same atomics, same memory
+orders) and four bounded test programs, checked with
+[GenMC](https://github.com/MPI-SWS/genmc) v0.19.0 in WSL Ubuntu 24.04. Full
+output is in [genmc/results.txt](genmc/results.txt) and `genmc/logs/`.
+
+To build GenMC (it needs LLVM 19–22 and g++ 14):
+
+```sh
+sudo apt-get install -y cmake clang-19 llvm-19 llvm-19-dev libclang-19-dev     libffi-dev zlib1g-dev libedit-dev g++-14
+git clone --depth 1 https://github.com/MPI-SWS/genmc.git && cd genmc
+CC=gcc-14 CXX=g++-14 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo     -DCMAKE_PREFIX_PATH=/usr/lib/llvm-19/cmake -B RelWithDebInfo -S .
+cmake --build RelWithDebInfo -j
+```
+
+Then, from `genmc/`, run each test as `genmc <model> [flags] -- -I. [defines] <test>.c`:
+
+| Test | Runs |
+| --- | --- |
+| `test_mutex.c` | `-rc11`, `-imm`, `-rc11 -check-liveness` |
+| `test_batch.c` | same three, plus `-rc11` with `-DOPP=0` (Opal-NOR) |
+| `test_mixed.c` | `-rc11`, `-imm`, `-rc11 -check-liveness` |
+| `test_reader.c` | `-tso` and `-rc11` with `-DWRITER=0` and `-DWRITER=1`; `-rc11` again with `-DFIX_FENCES=1` |
+
+A run passes when GenMC prints `No errors were detected`; a failure prints the
+offending execution. The 4-thread batching and mixed tests take minutes each
+under RC11 and longer under IMM.
+
+GenMC explores every execution of each program under the chosen memory model.
+That makes these results exhaustive for 3–4 threads doing one operation each;
+it is not a proof for unbounded threads, and the B+ Tree itself is not modelled.
+
+| Property | RC11 (C11) | IMM (ARM-like) | Executions |
+| --- | --- | --- | --- |
+| Mutual exclusion, SMO write path (3 threads) | pass | pass | 1,104 |
+| Batching: each critical section runs once, each caller gets its own result (4 threads) | pass | pass | 359,928 |
+| Mixed plain + function-pointer writers (§3.3) | pass | pass | 344,568 |
+| No spinloop can wait forever (`-check-liveness`) | pass | – | as above |
+| Optimistic reader never validates a torn snapshot | **fail** | – | – |
+| Same, under x86-TSO | pass | – | 16 / 840 |
+| Same, RC11, with a release fence after lock acquire and an acquire fence before validation | pass | – | 16 / 876 |
+
+**Finding.** The queueing and batching protocol holds in every explored
+execution. The optimistic read path is correct under x86-TSO but not under
+C11: a writer's data stores can become visible before the store that marks the
+lock held, so a reader can see a half-written node and still pass validation.
+This is the standard seqlock problem (Boehm, MSPC 2012) and applies to the
+paper's pseudocode and to this port alike. Two fences fix it
+(`FIX_FENCES=1` in the model). The benchmark code is unchanged, since it only
+targets x86.
+
+Caveats: the model splits the lock word into a state+version atomic and a
+separate tail atomic because GenMC rejects mixed-size accesses; this can only
+add executions, never remove them. GenMC marks atomic exchange as experimental
+under IMM, so treat the IMM column as strong evidence rather than proof.
